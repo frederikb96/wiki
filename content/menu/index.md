@@ -11,4 +11,3 @@ headless: true
 - [Other]({{< ref "../docs/Other" >}})
 
 _
-
