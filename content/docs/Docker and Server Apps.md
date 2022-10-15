@@ -1160,7 +1160,7 @@ Version=1.1
 Type=Application
 Name=Wiki Publish
 Icon=
-Exec=(cd /home/freddy/Nextcloud/Notes/Technical/public-repo && ./all.sh && ssh root@pi4.lan "(cd /opt/docker/hugo && ./update-repo.sh)")
+Exec=bash -c '(cd /home/freddy/Nextcloud/Notes/Technical/public-repo && ./all.sh && ssh root@pi4.lan "(cd /opt/docker/hugo && ./update-repo.sh)")'
 Terminal=false
 ```
 
