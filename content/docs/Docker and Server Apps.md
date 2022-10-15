@@ -1148,11 +1148,11 @@ echo "done"
 
 - You can also setup a crontab job to automatically update your git repo every hour or so:
 - `crontab -e`
-- `0 * * * * bash -c "cd /opt/docker/hugo; ./update-repo.sh"`
+- `0 * * * * (cd /opt/docker/hugo && ./update-repo.sh)`
 
 ###### Both Sides
 If you want to make changes directly visible, you can simply combine both previous sides
-- ...
+- ``
 
 ### XWiki
 https://www.xwiki.org/xwiki/bin/view/Main/WebHome
