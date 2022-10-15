@@ -1152,7 +1152,7 @@ echo "done"
 
 ###### Both Sides
 If you want to make changes directly visible, you can simply combine both previous sides
-- 
+- ...
 
 ### XWiki
 https://www.xwiki.org/xwiki/bin/view/Main/WebHome
