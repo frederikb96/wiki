@@ -1078,6 +1078,82 @@ You can use the [Hugo theme book](https://themes.gohugo.io/themes/hugo-book/) fo
 	- `pip3 install obsidian-to-hugo`
 	- `python3 -m obsidian_to_hugo --obsidian-vault-dir=<path> --hugo-content-dir=<path>`
 
+##### Automatic Hugo Update
+I want to have my Obsidian vault locally and if I make changes, they should automatically be published in my Wiki
+- I use a git repository to accomplish this
+	- The git repo will hold the complete hugo folder
+
+###### Local Side
+- My folder containing the vault, that shall be published is called `public/`
+- I add another folder named `public-repo` next to it
+- In the `public-repo` folder, I have some scripts
+
+ini-repo.sh
+- This script basically initializes my repo
+	- You have to manually set up this repo, such that your complete hugo folder will be inside the repo
+```
+#!/bin/bash
+git clone --recursive git@github.com:frederikb96/wiki.git ./local.wiki
+echo "done"
+read
+```
+
+update-repo.sh
+- This script automatically pulls and simply commits all new changes that I make in the local repo
+```
+#!/bin/bash
+cd local.wiki
+git pull
+git stage --all
+git commit -m 'Auto update'
+git push
+echo "done"
+```
+
+convert-content.sh
+- This script, uses the [#Obsidian to Hugo]({{< ref "#obsidian-to-hugo" >}}) method to convert my vault content and add it to the content folder of the hugo repo
+```
+#!/bin/bash
+python3 -m obsidian_to_hugo --obsidian-vault-dir=../public --hugo-content-dir=local.wiki/content
+```
+
+all.sh
+- This script simply calls the convert and afterwards the update script
+```
+#!/bin/bash
+./update-repo.sh
+./convert-content.sh
+./update-repo.sh
+echo "done"
+read
+```
+
+This way all your local vault content is always up2date with the git repo, you simply have to call the all.sh script every time you make a change, that shall be visible in the git repo
+
+###### Server Side
+Now we have to always be able to get updates on the server side
+- Go to your docker hugo folder and initalize the hugo vault as your hugo git repository (basically remove all content and replace it with the git repo, which has to contain the same content)
+	- Basically: `rm -rf hugo`  and `git clone --recursive https://github.com/frederikb96/wiki.git ./hugo`
+	- Note: If your repository is public, you can pull via the "https" link, such that you do not have to add your git ssh key to your server, which is enough if you only want to pull and not commit anything via the server side
+- Now you can always use a simple script to update your hugo repo on the server
+	- In my setup, the script is located next do the `docker-compose.yml` file and is updating the hugo vault/repo
+
+update-repo.sh
+```
+#!/bin/bash
+cd hugo
+git pull
+echo "done"
+```
+
+- You can also setup a crontab job to automatically update your git repo every hour or so:
+- `crontab -e`
+- `0 * * * * bash -c "cd /opt/docker/hugo; ./update-repo.sh"`
+
+###### Both Sides
+If you want to make changes directly visible, you can simply combine both previous sides
+- 
+
 ### XWiki
 https://www.xwiki.org/xwiki/bin/view/Main/WebHome
 
