@@ -1124,8 +1124,7 @@ all.sh
 ./update-repo.sh
 ./convert-content.sh
 ./update-repo.sh
-echo "done"
-read
+echo "all done"
 ```
 
 This way all your local vault content is always up2date with the git repo, you simply have to call the all.sh script every time you make a change, that shall be visible in the git repo
@@ -1152,7 +1151,18 @@ echo "done"
 
 ###### Both Sides
 If you want to make changes directly visible, you can simply combine both previous sides
-- ``
+- `(cd /home/freddy/Nextcloud/Notes/Technical/public-repo && ./all.sh && ssh root@pi4.lan "(cd /opt/docker/hugo && ./update-repo.sh)")`
+- You can also create launchers for this
+
+```
+[Desktop Entry]
+Version=1.1
+Type=Application
+Name=Wiki Publish
+Icon=
+Exec=(cd /home/freddy/Nextcloud/Notes/Technical/public-repo && ./all.sh && ssh root@pi4.lan "(cd /opt/docker/hugo && ./update-repo.sh)")
+Terminal=false
+```
 
 ### XWiki
 https://www.xwiki.org/xwiki/bin/view/Main/WebHome
