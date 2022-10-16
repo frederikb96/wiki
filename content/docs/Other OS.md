@@ -1,7 +1,5 @@
 ---
 title: "Other OS's"
-date: 2022-10-15
-draft: false
 ---
 
 # Other OS

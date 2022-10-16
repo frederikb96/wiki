@@ -1,7 +1,5 @@
 ---
 title: "Linux Backup"
-date: 2022-10-15
-draft: false
 ---
 
 # Linux Backup

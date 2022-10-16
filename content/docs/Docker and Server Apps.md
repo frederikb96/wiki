@@ -1,7 +1,5 @@
 ---
 title: "Docker and Server Apps"
-date: 2022-10-15
-draft: false
 ---
 # Docker and Server Apps
 The first part of this page is about Docker and my best practices. The second part is about the apps, which I have installed on my server. I install almost all my apps via docker.

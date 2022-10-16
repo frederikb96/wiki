@@ -1,7 +1,5 @@
 ---
 title: "Linux System (Ubuntu)"
-date: 2022-10-15
-draft: false
 ---
 
 # Linux System (Ubuntu)
