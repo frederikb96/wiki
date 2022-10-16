@@ -2,7 +2,7 @@
 headless: true
 ---
 
-**[Website](https://bergrunde.net)**
+**[Back to my Website](https://bergrunde.net)**
 
 ---
 
