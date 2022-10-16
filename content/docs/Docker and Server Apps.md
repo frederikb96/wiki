@@ -406,14 +406,14 @@ networks:
 #### Caddyfile
 The caddy file defines the setup of your webserver
 - You can specify how specific queries are handled
-- I only use it for reverse proxies (to forward the traffic)
-  - I have some domains, which shall be accessible from the internet
-    - Make sure to have read the page about [how to make your server globally accessible]({{< ref "Network#server-global-accessible" >}})
-    - If you fulfilled all the requirements, you can simply use caddy to automatically handle the https certificate process for you as described in the [caddy guide about https](https://caddyserver.com/docs/automatic-https)
-    - In short
-      - You have to have a domain pointing to your IP address
-      - Your router must have open ports 80 and 443 for your server
-      - In your caddy file you have to specify that you want to automatically let caddy handle everything, example:
+- I mainly use it for reverse proxies (to forward the traffic)
+	- I have some domains, which shall be accessible from the internet
+		- Make sure to have read the page about [how to make your server globally accessible]({{< ref "Network#server-global-accessible" >}})
+		- If you fulfilled all the requirements, you can simply use caddy to automatically handle the https certificate process for you as described in the [caddy guide about https](https://caddyserver.com/docs/automatic-https)
+		- In short
+	- You have to have a domain pointing to your IP address
+		- Your router must have open ports 80 and 443 for your server
+		- In your caddy file you have to specify that you want to automatically let caddy handle everything, example:
 ```
 https://your-comain.de:443 {
 	# Use the ACME HTTP-01 challenge to get a cert for the configured domain.
@@ -423,12 +423,12 @@ https://your-comain.de:443 {
 }
 ```
 - .
-  - .
-    - That is all, now you will receive an email, if the generation was successful
-    - You can also check the docker logs, if errors occurred `docker compose logs`
-      - This is most likely because your server is inaccessible from the internet (ports not open or domain not pointing to your server), check [Network#Server Global Accessible]({{< ref "Network#server-global-accessible" >}}) again in this case
-  - If you have domains, which shall only be accessible from the local network
-    - You can use caddy to create self-signed certificates, like this:
+	- .
+		- That is all, now you will receive an email, if the generation was successful
+		- You can also check the docker logs, if errors occurred `docker compose logs`
+		- This is most likely because your server is inaccessible from the internet (ports not open or domain not pointing to your server), check [Network#Server Global Accessible]({{< ref "Network#server-global-accessible" >}}) again in this case
+	- If you have domains, which shall only be accessible from the local network
+		- You can use caddy to create self-signed certificates, like this:
 ```
 https://pi4.lan:443 {
 	tls internal
@@ -436,9 +436,20 @@ https://pi4.lan:443 {
 }
 ```
 - .
-  - .
-    - Now you also have an encrypted connection to your website, which is only accessible from the local network
-    - **Note:** This works only if you have a local dns resolver like [#Pi-hole and Cloudflared]({{< ref "#pi-hole-and-cloudflared" >}}), which resolves something like `pi4.lan` for you. If that is not the case, you can simply replace the domain within the caddy file, with the static ipv4 address of your server. This is also fine :)
+	- .
+		- Now you also have an encrypted connection to your website, which is only accessible from the local network
+		- **Note:** This works only if you have a local dns resolver like [#Pi-hole and Cloudflared]({{< ref "#pi-hole-and-cloudflared" >}}), which resolves something like `pi4.lan` for you. If that is not the case, you can simply replace the domain within the caddy file, with the static ipv4 address of your server. This is also fine :)
+- I also have a simple caddy setup to server some static sites (also see [#Hugo]({{< ref "#hugo" >}}) which is my static site generator)
+	- You can put your static sites for example into the caddy data vault `caddy/caddy-data/websites/your-files`, which will be the following path within the caddy container `/data/websites/your-files`
+```
+https://website.my-domain.de:443 {
+	# Use the ACME HTTP-01 challenge to get a cert for the configured domain.
+	tls {$EMAIL}
+	
+	root * /data/websites/your-files
+	file_server
+}
+```
 
 On example how a caddy file could look like later, if you have multiple containers running that need to be accessible from the internet:
 
@@ -460,11 +471,12 @@ https://my-domain.de:443 {
 	respond "Welcome to my website"
 }
 
-https://wiki.my-domain.de:443 {
+https://website.my-domain.de:443 {
 	# Use the ACME HTTP-01 challenge to get a cert for the configured domain.
 	tls {$EMAIL}
-
-	reverse_proxy hugo:443
+	
+	root * /data/websites/your-files
+	file_server
 }
 
 https://php.lan:443 {
@@ -1019,13 +1031,15 @@ A tool to create static websites
 - [Hugo website](https://gohugo.io/)
 - [Hugo docker image, unofficial](https://hub.docker.com/r/klakegg/hugo)
 
+**Note:** Hugo has an integrated webserver, which can be used to immediately view the files during development - we use a local domain address (`wiki.lan`) (see [#Pi-hole and Cloudflared]({{< ref "#pi-hole-and-cloudflared" >}})) to reverse proxy it via caddy. And then you can generate html code and publish it via your real webserver - we use caddy to directly publish the sites via a global domain (`your-domain.de`).
+
 Docker compose file:
 ```
 services:
   hugo:
     image: klakegg/hugo:ext-ubuntu
     container_name: hugo
-    command: server --appendPort "false" -b "https://your-domain.de" -p 443
+    command: server --appendPort "false" -b "https://wiki.lan" -p 443
     volumes:
       - "./hugo:/src"
     networks:
@@ -1037,8 +1051,16 @@ networks:
     external: true
 ```
 
+Caddy file - local:
+```
+https://wiki.lan:443 {
+	tls internal
+	reverse_proxy hugo:443
+}
+```
+
 - the server will fail to start and the container will crash, if there is not a `config.toml` located inside the `/src` folder
-  - consequently add the `config.toml` file with the following content to your volume `./hugo` before starting the container
+	- consequently add the `config.toml` file with the following content to your volume `./hugo` before starting the container
 ```
 baseURL = 'https://your-domain.de/'
 languageCode = 'en-us'
@@ -1046,18 +1068,36 @@ title = 'My New Hugo Site'
 ```
 
 - Now you can connect to the shell of the docker container
-  - `docker exec -ti hugo bash`
+	- `docker exec -ti hugo bash`
 - From now on you can use all the `hugo` commands as described in the [hugo guide](https://gohugo.io/getting-started/quick-start/)
-  - If you go with the quickstart guide, you can create the quickstart folder within the /src folder and afterwards move all content one layer higher (and overwrite the original config.toml) and remove the empty quickstart folder afterwards
-  - Skip the step with enabling the server, since it is always running anyways and watching this folder for updates
-  - After a theme is inserted, you can visit your website and see the results the first time
+	- If you go with the quickstart guide, you can create the quickstart folder within the /src folder and afterwards move all content one layer higher (and overwrite the original config.toml) and remove the empty quickstart folder afterwards
+	- Skip the step with enabling the server, since it is always running anyways and watching this folder for updates
+	- After a theme is inserted, you can visit your website and see the results the first time
 - **Note:** The default hugo server (with pid 1) must always run within the container, which is started with the initial command in the docker compose file
-  - If you stop the server, the container crashes
-  - You can change the flags for this server in the docker compose file
-  - With the current setup it is listening on port 443 and by default is always watching the `/src` folder for changes
-  - I had problem if not using the same port as you will use when reverse proxying this server via caddy, since internal links will brake then
-    - so I directly use port 443, which is ok, since caddy can directly forward to this port
-    - The port is not published to the host network and only containers within the caddy network can access the hugo server via 443
+	- If you stop the server, the container crashes
+	- You can change the flags for this server in the docker compose file
+	- With the current setup it is listening on port 443 and by default is always watching the `/src` folder for changes
+	- I had problem if not using the same port as you will use when reverse proxying this server via caddy, since internal links will brake then
+		- so I directly use port 443, which is ok, since caddy can directly forward to this port
+		- The port is not published to the host network and only containers within the caddy network can access the hugo server via 443
+
+Now we also want to publish the content to the real server:
+- Simply call the `hugo` command within your docker container
+	- First to a delete of the old files, if there are some: `docker exec -ti hugo rm -rf public`
+	- `docker exec -ti hugo hugo`
+- This will create the `public/` folder with the static website
+	- Check `docker exec -ti hugo ls -la`
+- Now you can paste the public folder to your webserver data folder (see [here how to server static files]({{< ref "#caddy" >}})) and serve it
+Caddyfile:
+```
+https://my-domain.de:443 {
+	# Use the ACME HTTP-01 challenge to get a cert for the configured domain.
+	tls {$EMAIL}
+	
+	root * /data/websites/public
+	file_server
+}
+```
 
 #### Hugo Guide
 This [video guide about Hugo](https://www.youtube.com/playlist?list=PLLAZ4kZ9dFpOnyRlyS-liKL5ReHDcj4G3) is very useful to understand the main concepts of the different directories located within the Hugo folder and how templates and themes work
@@ -1135,6 +1175,9 @@ Now we have to always be able to get updates on the server side
 - Now you can always use a simple script to update your hugo repo on the server
 	- In my setup, the script is located next do the `docker-compose.yml` file and is updating the hugo vault/repo
 	- **Note:** It is only used to pull and not commit changes, so all local changes are always overwritten!
+- We also want to update the real website and not only the local website
+	- So we also automate the publishing process
+	- And move the directory to the location where caddy is serving the new files
 
 update-repo.sh
 ```
@@ -1145,22 +1188,29 @@ git pull --no-rebase
 echo "done"
 ```
 
+all.sh
+```
+#!/bin/bash
+./update-repo.sh
+rm -rf hugo/public
+docker exec -ti hugo hugo && rsync -av --delete hugo/public/ /opt/docker/caddy/caddy/caddy-data/websites/hugo-wiki/ && rm -rf hugo/public
+echo "all done"
+```
+
 - You can also setup a crontab job to automatically update your git repo every hour or so:
 - `crontab -e`
-- `0 * * * * (cd /opt/docker/hugo && ./update-repo.sh)`
+- `0 * * * * (cd /opt/docker/hugo && ./all.sh)`
 
 ###### Both Sides
 If you want to make changes directly visible, you can simply combine both previous sides
-- `(cd /home/freddy/Nextcloud/Notes/Technical/public-repo && ./all.sh && ssh root@pi4.lan "(cd /opt/docker/hugo && ./update-repo.sh)")`
 - You can also create launchers for this
-
 ```
 [Desktop Entry]
 Version=1.1
 Type=Application
 Name=Wiki Publish
 Icon=
-Exec=bash -c '(cd /home/freddy/Nextcloud/Notes/Technical/public-repo && ./all.sh && ssh root@pi4.lan "(cd /opt/docker/hugo && ./update-repo.sh)")'
+Exec=gnome-terminal -- bash -c 'cd /home/freddy/Nextcloud/Notes/Technical/public-repo && ./all.sh && ssh root@pi4.lan "(cd /opt/docker/hugo && ./all.sh)"; read'
 Terminal=false
 ```
 
