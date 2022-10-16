@@ -1103,7 +1103,7 @@ update-repo.sh
 ```
 #!/bin/bash
 cd local.wiki
-git pull
+git pull --no-rebase
 git stage --all
 git commit -m 'Auto update'
 git push
@@ -1136,12 +1136,14 @@ Now we have to always be able to get updates on the server side
 	- Note: If your repository is public, you can pull via the "https" link, such that you do not have to add your git ssh key to your server, which is enough if you only want to pull and not commit anything via the server side
 - Now you can always use a simple script to update your hugo repo on the server
 	- In my setup, the script is located next do the `docker-compose.yml` file and is updating the hugo vault/repo
+	- **Note:** It is only used to pull and not commit changes, so all local changes are always overwritten!
 
 update-repo.sh
 ```
 #!/bin/bash
 cd hugo
-git pull
+git reset --hard
+git pull --no-rebase
 echo "done"
 ```
 
