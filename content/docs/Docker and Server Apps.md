@@ -1083,10 +1083,10 @@ title = 'My New Hugo Site'
 
 Now we also want to publish the content to the real server:
 - Simply call the `hugo` command within your docker container
-	- First to a delete of the old files, if there are some: `docker exec -ti hugo rm -rf public`
-	- `docker exec -ti hugo hugo`
+	- First to a delete of the old files, if there are some: `docker exec hugo rm -rf public`
+	- `docker exec hugo hugo`
 - This will create the `public/` folder with the static website
-	- Check `docker exec -ti hugo ls -la`
+	- Check `docker exec hugo ls -la`
 - Now you can paste the public folder to your webserver data folder (see [here how to server static files]({{< ref "#caddy" >}})) and serve it
 Caddyfile:
 ```
@@ -1193,7 +1193,7 @@ all.sh
 #!/bin/bash
 ./update-repo.sh
 rm -rf hugo/public
-docker exec -ti hugo hugo && rsync -av --delete hugo/public/ /opt/docker/caddy/caddy/caddy-data/websites/hugo-wiki/ && rm -rf hugo/public
+docker exec hugo hugo && rsync -av --delete hugo/public/ /opt/docker/caddy/caddy/caddy-data/websites/hugo-wiki/ && rm -rf hugo/public
 echo "all done"
 ```
 
