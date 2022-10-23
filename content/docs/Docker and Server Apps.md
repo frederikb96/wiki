@@ -990,7 +990,7 @@ networks:
 
 Caddyfile:
 ```
-https://wiki.bergrunde.net:443 {
+https://wiki.my-domain.de:443 {
 	# Use the ACME HTTP-01 challenge to get a cert for the configured domain.
 	tls {$EMAIL}
 
@@ -1259,3 +1259,145 @@ networks:
     external: true
   xwiki-db:
 ```
+
+### Matrix
+- [Home page Matrix](https://matrix.org/)
+- [docker hub](https://hub.docker.com/r/matrixdotorg/synapse/)
+- [guide for RasPi and Matrix](https://theselfhostingblog.com/posts/self-hosting-your-own-matrix-server-on-a-raspberry-pi/)
+- Synapse is the server running the matrix protocol
+
+Config
+- You need a `homeserver.yaml` config file, generate it
+	- It will create the config in the `synpase` folder (you have to give an absolute path) and delete the container again
+`docker run -it --rm -v /absoulte-path/synapse:/data -e SYNAPSE_SERVER_NAME=my-domain.de -e SYNAPSE_REPORT_STATS=yes matrixdotorg/synapse:latest generate`
+- Add database info to `homeserver.yaml` file
+```yaml
+database:
+  name: psycopg2
+  args:
+    user: synapse
+    password: <pass>
+    database: synapse
+    host: postgres-synapse
+    cp_min: 5
+    cp_max: 10
+```
+
+Compose file
+```
+services:
+
+  postgres-synapse:
+    image: postgres:latest
+    container_name: postgres-synapse
+    environment:
+      POSTGRES_DB: synapse
+      POSTGRES_PASSWORD: <pass>
+      POSTGRES_USER: synapse
+      POSTGRES_INITDB_ARGS: "--encoding='UTF8' --locale='C'"
+    networks:
+      - synapse-db
+    volumes:
+      - ./postgres:/var/lib/postgresql/data
+    restart: always
+    
+  synapse:
+    image: "matrixdotorg/synapse:latest"
+    container_name: synapse
+    #ports:
+      #- "8008:8008"
+    environment:
+      - TZ=ECT
+    volumes:
+      - ./synapse:/data
+    networks:
+      - caddy
+ 
+networks:
+  caddy:
+    external: true
+  synapse-db:
+```
+
+We will also enable [federation](https://matrix-org.github.io/synapse/latest/federate.html) and [delegation](https://matrix-org.github.io/synapse/latest/delegate.html)
+- Federation means, that our server can be accessed from other synapse servers
+- Delegation means, that we will be accessible at `my-domain.de` but our server is actually running on `matrix.my-domain.de`
+- To make it work, we use the following caddyfile as explained in: [guide for reverse proxy](https://matrix-org.github.io/synapse/latest/reverse_proxy.html)
+	- So, we have to add some information to our main server proxy too
+	- This is an example, how I added the additional responses to my main domain, and how to server all other requests via my hugo sever, which is normally running on my main domain
+	- We also have another local domain, which can be used to access the admin API on `/_synapse/admin/...`
+```
+my-domain.de {
+	# Use the ACME HTTP-01 challenge to get a cert for the configured domain.
+	tls {$EMAIL}
+	
+	header /.well-known/matrix/* Content-Type application/json
+    header /.well-known/matrix/* Access-Control-Allow-Origin *
+    respond /.well-known/matrix/server `{"m.server": "matrix.my-domain.de:443"}`
+    respond /.well-known/matrix/client `{"m.homeserver":{"base_url":"https://matrix.my-domain.de"}}`
+	
+	root * /data/websites/hugo-main
+	file_server
+}
+
+matrix.my-domain.de {
+	# Use the ACME HTTP-01 challenge to get a cert for the configured domain.
+	tls {$EMAIL}
+	
+	reverse_proxy /_matrix/* synapse:8008
+    reverse_proxy /_synapse/client/* synapse:8008
+}
+
+matrix.lan {
+	tls internal
+	reverse_proxy synapse:8008
+}
+```
+- Also add another line to your `homeserver.yaml`
+```
+public_baseurl: "https://matrix.my-domain.de"
+```
+
+Set up [email](https://matrix-org.github.io/synapse/latest/usage/configuration/config_documentation.html?highlight=require_transport_security#email)
+```
+email:
+  smtp_host: smtp.strato.de
+  smtp_port: 465
+  notif_from: "%(app)s <webmaster@my-domain.de>"
+  app_name: "Matrix My-Name"
+  smtp_user: webmaster@my-domain.de
+  smtp_pass: pw
+  force_tls: true
+```
+
+Registration for new users
+- I require a mail and a private token which I can generate for new users, to be able to register on my synapse server
+- in `homeserver.yaml`
+```yaml
+enable_registration: true
+registration_requires_token: true
+registrations_require_3pid:
+  - email
+```
+So, you also need to [generate those new tokens](https://matrix-org.github.io/synapse/latest/usage/administration/admin_api/registration_tokens.html)
+- Read all tokens
+	- `curl --insecure --header "Authorization: Bearer <your access token>" -X GET https://matrix.lan/_synapse/admin/v2/users/@freddy:bergrunde.net`
+- Create a new default infinite one
+	- `curl --insecure --header "Authorization: Bearer <your access token>" -X POST https://matrix.lan/_synapse/admin/v1/registration_tokens/new -d {}`
+- Create a limited one
+	- `curl --insecure --header "Authorization: Bearer <your access token>" -X DELETE https://matrix.lan/_synapse/admin/v1/registration_tokens/gxq0POST https://matrix.lan/_synapse/admin/v1/registration_tokens/new -d '{"uses_allowed": 10}'`
+- Delete a token
+	- `curl --insecure --header "Authorization: Bearer <your access token>" -X DELETE https://matrix.lan/_synapse/admin/v1/registration_tokens/token-id`
+
+Generate an admin account
+- Help message
+````
+docker exec -it synapse register_new_matrix_user https://matrix.my-domain.de -c /data/homeserver.yaml --help
+````
+- New admin user
+`docker exec -it synapse register_new_matrix_user https://matrix.my-domain.de -c /data/homeserver.yaml -u admin -p pw -a`
+
+Use Admin API
+- [api guide](https://matrix-org.github.io/synapse/latest/usage/administration/admin_api/)
+- example
+`curl --insecure --header "Authorization: Bearer <your access token>" -X GET https://matrix.lan/_synapse/admin/v2/users/@user@my-domain.de'
