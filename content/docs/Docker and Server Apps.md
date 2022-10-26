@@ -1288,7 +1288,7 @@ Compose file
 services:
 
   postgres-synapse:
-    image: postgres:15
+    image: postgres:14
     container_name: postgres-synapse
     environment:
       POSTGRES_DB: synapse
@@ -1298,7 +1298,7 @@ services:
     networks:
       - synapse-db
     volumes:
-      - ./postgres-15:/var/lib/postgresql/data
+      - ./postgres:/var/lib/postgresql/data
     restart: always
     
   synapse:
@@ -1401,26 +1401,3 @@ Use Admin API
 - [api guide](https://matrix-org.github.io/synapse/latest/usage/administration/admin_api/)
 - example
 `curl --insecure --header "Authorization: Bearer <your access token>" -X GET https://matrix.lan/_synapse/admin/v2/users/@user@my-domain.de'
-
-#### PostgreSQL Upgrade
-- PostgreSQL cannot automatically upgrade major versions like from 14 to 15
-- So you have to do the following, as described [in this upgrade guide](https://peter.grman.at/upgrading-postgres-docker-containers/)
-
-- `cd` into the synapse directory with the docker compose file
-- Stop the synapse container
-	- `docker stop synapse`
-- Dump the PostgreSQL database
-	- `docker exec postgres-synapse pg_dumpall -U synapse > dump.sql`
-- Stop the PostgreSQL container
-	- `docker stop postgres-synapse`
-- Edit the docker compose file
-	- `nano docker-compose.yml`
-	- change the version of PostgreSQL in the docker image and also the mounted folder for the data volume
-	- `image: postgres:15` and `- ./postgres-15:/var/lib/postgresql/data`
-- Start the PostgreSQL container
-	- `docker compose up -d postgres-synapse`
-- Import new data
-	- `docker exec -i postgres-synapse psql -U synapse < dump.sql`
-- Start everything again
-	- `docker compose up -d`
-- Check if it is working and delete old folder and dump file
