@@ -1312,6 +1312,7 @@ services:
       - ./synapse:/data
     networks:
       - caddy
+    restart: always
  
 networks:
   caddy:

@@ -86,7 +86,6 @@ Bcdedit /set {bootmgr} path \EFI\ubuntu\shimx64.efi
 ## FP4 / Android
 
 ### Install
-
 - Unlock bootloader: https://support.fairphone.com/hc/en-us/articles/4405858258961
   - SN and IMEI in Sachen note
   - Necessary to keep unlocked if device is updatend an thus magisk removed, then you need unlocked bootloader again to access root
@@ -95,13 +94,10 @@ Bcdedit /set {bootmgr} path \EFI\ubuntu\shimx64.efi
   - Has custom recovery with root access
 
 ### Root
-
 https://forum.fairphone.com/t/fp4-root-access-is-possible-maybe-a-bit-risky/76839
-
 https://forum.xda-developers.com/t/fairphone-4-root.4376421/
 
 After booting phone works, do following:
-
 - install magisk apk from magisk website
 - use boot.img from e os downloaded zip of your installed version to patch that image
 - transfer it to your pc
@@ -113,7 +109,6 @@ After booting phone works, do following:
 - problems might occur if slot for boot image is changed
 
 [Hide Root:](https://www.reddit.com/r/androidroot/comments/t2y3mq/vr_securego_plus_root_detection/)
-
 - check in settings the zygisk mode and configure deny list
 - additional might be necessary to disable magisk temporartily
 - Carefull to always enable again before loosing root rights, but root rights are stored if you do not unintall an app, so can keep using without having magisk enabled
@@ -139,15 +134,12 @@ Shortcuts:
 - Then start with `crond -b -c dir`
 - Use for autostart `/data/adb/serives.d` and make script execute as su and also chmod x.
 
-
 ### Obsidian
 Use tasker to create launcher
 - `obsidian://advanced-uri?vault=Notes&filepath=Eingang.md&mode=append&commandname=Toggle%20keyboard`
 
 ### ADB Backup
-
 Data
-
 ```
 #!/bin/bash
 
@@ -174,7 +166,6 @@ adb -s ff0983b4 shell ls -la data/data/$myName
 ```
 
 Sdcard data
-
 ```
 #!/bin/bash
 
@@ -200,7 +191,6 @@ adb -s ff0983b4 shell ls -la sdcard/Android/media/$myName
 ```
 
 Old
-
 ```
 find ./ -type d -name "*t*"
 
@@ -218,12 +208,11 @@ chown -R u0_a233:u0_a233_cache net.osmand.srtmPlugin.paid/c* && ls -l net.osmand
 adb -s b3f7e1cb shell find /data/data -type d -name "*whatsapp*"
 ```
 
-### OS Update with root
-
-- Handy download new zip from e os website from favoriten
-- extract boot and patch boot file
-- enable Magisk
-- update fp4 auto updates
-- `adb reboot bootloader`
-- `fastboot boot /home/freddy/magisk*.img`
-- Magisk install root
+### Automate Root via Script
+- If you update your FP4 with /e/OS installed, the root via magisk will be removed
+- To root my phone again, I wrote a script to automate this process
+	- It downloads the latest FP4 /e/OS image
+	- Extracts the boot.img file
+	- Connects to the phone via adb and patches it via magisk command line tool
+	- And then boots the phone into fastboot to finally flash the new boot image
+- The script is available in my personal [linux-scripts repo](https://github.com/frederikb96/Linux-Scripts)

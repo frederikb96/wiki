@@ -473,7 +473,6 @@ sudo snap install clion --classic
 sudo snap install pycharm-professional --classic
 sudo snap install gitkraken --classic
 sudo snap install xournalpp
-sudo snap install signal-desktop
 sudo snap install discord
 sudo snap install element-desktop
 ```
@@ -578,6 +577,10 @@ Terminal=false
 ```
 - .
 	- Now you can right click on of your md files and change the default program to your new Obsidian Auto launcher
+
+### Signal
+- https://signal.org/download/
+- Use the flag to start signal in tray `--use-tray-icon`
 
 ### Typora
 ```
@@ -1001,10 +1004,9 @@ Keyrings can be stored under:
 ```
 
 Sources located here:
-
 ```
 /etc/apt/sources.list.d/
-/etc/apt/sources.list.d/docker.list
+/etc/apt/sources.list.d/docker.list #example for one app
 ```
 
 ### Canberra GTK Module fix
