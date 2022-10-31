@@ -12,6 +12,7 @@ headless: true
 - [Raspberry Pi]({{< ref "../docs/Raspberry Pi" >}})
 - [Network]({{< ref "../docs/Network" >}})
 - [Docker and Server Apps]({{< ref "../docs/Docker and Server Apps" >}})
+- [Other OS]({{< ref "../docs/Other OS" >}})
 - [Other]({{< ref "../docs/Other" >}})
 
 ---
