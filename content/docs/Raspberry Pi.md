@@ -72,7 +72,7 @@ On RasPi change it in `sudo nano /etc/dhcpcd.conf`:
 
 ### Locals Problem over SSH
 there is often a error coming up due to problems with the locals on the RasPi if connecting via ssh and performing some operations
-remove error from `perl -e exit` by commenting out `AcceptEnv LANG LC_*` from `/etc/ssh/sshd_config`
+remove error from `perl -e exit` by commenting out `AcceptEnv LANG LC_*` from `sudo nano /etc/ssh/sshd_config`
 
 ### Create root user pw
 I find it easier to access the RasPi directly via the root user, since all tasks that I perform on the RasPi are root tasks anyways, since I do only use it for server functionalities

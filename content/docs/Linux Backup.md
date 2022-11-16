@@ -7,17 +7,61 @@ title: "Linux Backup"
 ## Clonezilla Backups
 You can use clonezilla to make full backups of your complete drive or the Raspberry SD card
 https://clonezilla.org/
-todo...
 
-## Raspberry Pi Backups
-A guide on how to back up your important RasPi data via ssh to another PC
+## Kopia Backups
+- To backup all kind of data I use [Kopia](https://kopia.io)
+	- It supports incremental backups, which allow to restore to different points in time
+- [Install Kopia](https://kopia.io/docs/installation/#linux-installation-using-apt-debian-ubuntu)
+- [Guide on how to use Kopia](https://kopia.io/docs/getting-started/)
 
-Since the Backup is based on self written scripts, they can all be found at [this repository](https://github.com/frederikb96/Linux-Scripts)
-- Check the repo for up2date information
-- The following snippets are only examples
-- However this is useful to understand the setup process
+- There are basically two backup mechanisms: push and pull
+	- With push, the client containing the data is pushing the data to a backup server
+	- With pull, the backup server is asking a client to get its data to backup it
+- Kopia only supports the push mode (so the client side mode)
 
-### Unison
+- On our client, containing the data, we initialize a repository, which will be located on our backup driver or also backup server
+- For a backup drive simply create a repo via
+	- `kopia repository create filesystem --path /path/to/backup/drive/folder`
+- We create and connect to a backup server repository e.g. via ssh (sftp)
+	- We already have to have a working ssh connection from our client to our server with ssh keys set up
+	- `kopia repository create sftp --path=/home/freddy/Backup/pi4 --host=freddy-desktop.lan --username=freddy --keyfile=/root/.ssh/id_rsa --known-hosts=/root/.ssh/known_hosts`
+- That is all, now we are connected via Kopia to this backup repository
+	- Kopia will always reconnect to this reposiotory, except if you manually disconnect at some point via `kopia repository disconnect`
+	- Then you can reconnect via `kopia repository connect filesystem --path /path/to/backup/drive/folder`
+		- or via `kopia repository connect sftp --path=/home/freddy/Backup/pi4 --host=freddy-desktop.lan --username=freddy --keyfile=/root/.ssh/id_rsa --known-hosts=/root/.ssh/known_hosts`
+
+**Backups**
+- Now we can create backups (snapshots) of various data located on our client
+- Examples
+	- `kopia snapshot create /opt/docker`
+	- or if you want to first dump a database from a docker container, to be sure that it is in a valid state when restoring do e.g.:
+		- `docker exec postgres-synapse pg_dumpall -U synapse > /databases/docker-synapse-postgres.dump && kopia snapshot create /databases/docker-synapse-postgres.dump && rm /databases/docker-synapse-postgres.dump`
+	- `kopia snapshot create /mnt/data/nextcloud`
+
+**Sync Backup to another Backup Repository**
+- If we want to sync our backup from one backup repository to another this is also possible with kopia
+	- [Forum question about this](https://kopia.discourse.group/t/duplicate-repo-to-another-location/1144/3)
+- Connect to the source repository if not already connected
+	- `kopia repository connect filesystem --path=/home/freddy/Backup/pi4`
+- Now you can sync the repo to the target repository (must be empty folder or have the same `kopia.repository` file) and specify it via path
+	- `kopia repository sync-to filesystem --path /media/freddy/Backup_Freddy/backup-server`
+	- Here you can also use sftp instead of the filesystem again
+
+**Mount / Restore Backup**
+- You can mount the backup to check the files
+- `kopia mount snapshot-id ~/my-mount-location`
+- `kopia restore snapshot-id ~/my-mount-location`
+
+**Personal Backup Structure**
+- On my main server, I have an additional backup drive
+- My main server and my other Raspberry Pi both connect to this same backup drive via kopia and do regular backups via cron every 1h
+- Since it is risky to only have one backup repository, I also sync the repository to my PC ones per Day via ssh, such that the complete repository is also available at a drive of my PC
+- And again I have another external drive, which I sometimes attach to my PC to also sync the repository on my PC to the external drive, to have another 3rd backup location
+
+## Unison Backups
+
+**I recently switched to use Kopia for backups**
+
 Use unison as file sync program [unison](https://www.cis.upenn.edu/~bcpierce/unison/)
 [Manual for unison](https://www.cis.upenn.edu/~bcpierce/unison/download/releases/stable/unison-manual.html)
 
@@ -26,10 +70,10 @@ Install it via:
 sudo apt install unison
 ```
 
-But same version on host and client needed (RasPi), so maybe install .deb manually and download somewhere
+But same version on host and client needed, so maybe install .deb manually and download somewhere if both Linux versions do not have the same version
 https://pkgs.org/download/unison
 
-And unison config for nextcloud backup:
+A unison config for a nextcloud backup:
 ```
 # Unison preferences
 label = Nextcloud Backup
@@ -46,7 +90,7 @@ retry = 1
 logfile = /home/freddy/Computer/Pi_Backup_Log/nextcloud_unison.log
 ```
 
-And file for backups to external drive
+And file for backups to an external drive
 ```
 # Unison preferences
 label = External Backup
@@ -68,101 +112,4 @@ log = false
 You can execute unison backup manually via:
 ```
 unison my-profile-name
-```
-
-### Backup Scripts
-Backup automatically by use of this script
-- Just tar all docker folders directly to backup location via pipe
-- And use unison to backup large folders
-    - no user and group is set to be able to backup to user backup folder on pc
-    - so if recovering you have to change the user and group owner after restore on the RasPi, all else is preserved
-- The script will write a log to the dedicated folder and if a specific criteria is met, like a long execution time or another error, it will copy the log to the desktop, such that the user of the pc knows that the automatic backup (normally in background) failed
-
-```
-#!/bin/bash
-
-#--------------------
-# Variables
-#--------------------
-day=`date +%d`
-month=`date +%m`
-year=`date +%Y`
-hour=`date +%H`
-min=`date +%M`
-
-SECONDS=0
-maxExecutionTime=5
-statusExit=0
-
-adressBackup="/home/freddy/Computer/Pi_Backup_Log/"
-adressError="/home/freddy/Desktop/"
-
-
-#--------------------
-# Main
-#--------------------
-
-{
-echo -e "\n--------------------"
-echo "Pi3 Docker:"
-echo -e "--------------------\n"
-ssh root@pi3.lan 'tar cvf - /opt/docker' > /home/freddy/Backup/pi3/docker.tar
-if [ $? -ne 0 ]; then statusExit=1; fi
-echo "done"
-
-echo -e "\n--------------------"
-echo "Pi4 Docker:"
-echo -e "--------------------\n"
-ssh root@pi4.lan 'tar cvf - /opt/docker' > /home/freddy/Backup/pi4/docker.tar
-if [ $? -ne 0 ]; then statusExit=1; fi
-echo "done"
-
-echo -e "\n--------------------"
-echo "Pi4 Nextcloud:"
-echo -e "--------------------\n"
-unison nextcloud_backup > /dev/null
-if [ $? -ne 0 ]; then statusExit=1; fi
-echo "done"
-} >> ${adressBackup}tmp.log 2>&1
-
-
-#--------------------
-# Log Processing
-#--------------------
-
-ElM=$((SECONDS / 60))
-
-name="backup_${year}_${month}_${day}_${hour}h_${min}m_ElM$ElM"
-
-find ${adressBackup}* -mtime +30 -type f -name "backup_*" -exec rm {} \;
-
-mv -f ${adressBackup}tmp.log ${adressBackup}$name.log
-
-if [ $statusExit -ne 0 ]
-then
-    mv -f ${adressBackup}$name.log ${adressBackup}${name}_ERROR.log
-    cp ${adressBackup}${name}_ERROR.log ${adressError}
-elif [ $ElM -gt $maxExecutionTime ]; then
-    mv -f ${adressBackup}$name.log ${adressBackup}${name}_TIME.log
-    cp ${adressBackup}${name}_TIME.log ${adressError}
-fi
-
-exit $statusExit
-```
-
-- save this script somewhere and automatically execute it with a anacron job
-	- also see [Linux System (Ubuntu)#Anacron as user]({{< ref "Linux System (Ubuntu)#anacron-as-user" >}})
-
-```
-# .anacron/etc/anacrontab: configuration file for anacron user
-
-# See anacron(8) and anacrontab(5) for details.
-
-SHELL=/bin/sh
-PATH=/home/freddy/.local/bin/my-bin:/home/freddy/.local/bin:/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
-HOME=/home/freddy
-LOGNAME=freddy
-
-# period  delay  job-identifier  command
-1       2       backup-pis.daily                do-backup-pis.sh
 ```

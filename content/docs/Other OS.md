@@ -216,3 +216,9 @@ adb -s b3f7e1cb shell find /data/data -type d -name "*whatsapp*"
 	- Connects to the phone via adb and patches it via magisk command line tool
 	- And then boots the phone into fastboot to finally flash the new boot image
 - The script is available in my personal [linux-scripts repo](https://github.com/frederikb96/Linux-Scripts)
+
+
+### Recover Encrypted data
+- You can recover encrypted data from your phone if your screen is broken but your phone is still workin
+- [This guide explains how to decrypt the data on the phone via twrp](https://android.stackexchange.com/questions/125121/mount-android-encrypted-data-partition-on-pc)
+- 

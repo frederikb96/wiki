@@ -9,7 +9,7 @@ The first part of this page is about Docker and my best practices. The second pa
 
 ### Install
 You can install docker via the offical website or as packages from your package manager.
-- I would recommend going with the [official website](https://docs.docker.com/engine/install/debian/).
+- I would recommend going with the [official website for docker engine](https://docs.docker.com/engine/install/debian/).
 - There are also small difference in the commands. `docker compose` vs `docker-compose` for example if using the one from your package manager.
 
 **64 bit**
@@ -49,7 +49,10 @@ To manage all my programs as containers in a convenient way, I use the following
 - In this folder are also further subfolders, which represent the volumes ("hard drives") of my containers
 - This way all data related to these containers is stored within this folder
   - Except for some volume mounts, which are necessary if the container needs access to specific host OS folders; But these folders are normally only used to access data and not to write data
-- If I want to transfer this program to another system, I simply have to tar the folder and untar it on the other system, all data is preserved and transferred this way :)
+- I also use [environment files](https://docs.docker.com/compose/environment-variables/) to store my passwords, such that I do not have to specify those within the docker compose file
+  - So next to the docker compose file, I have a `.env` file, which contains my passwords like `POSTGRES_PASSWORD=pw12345678...`
+  - In the docker compose file, I can then specify the password like this: `${POSTGRES_PASSWORD}`
+- Finally, if I want to transfer this program to another system, I simply have to tar the whole folder and untar it on the other system, all data is preserved and transferred this way :)
 
 Example for a docker compose file, where we have one host OS folder mounted, which is needed for some functionality; But the other folder is the data folder of the container, where real data is stored between restarts and this is mounted to a subfolder:
 ```
@@ -142,10 +145,14 @@ docker_restart
 
 ### Volume Backups
 #### Option 1
-Just use tar to backup the container folders, as described on the [page about backups]({{< ref "Linux Backup#raspberry-pi-backups" >}}). This is what I do.
+- I use Kopia to do incremental backups of the whole container folders
+- If there are databases, I additionall dump those via the respective commands and then also use Kopia to back up those dumped files
+- You can find an explanation to this [Kopia backup process here]({{< ref "Linux Backup#kopia-backups" >}})
 
 #### Option 2
-Theoretically, it is better to let docker handle everything and only access the files in the way the docker container sees those, so more complicated but nicer and better if data is distributed somewhere on host file system. [Official guide](https://docs.docker.com/storage/volumes/#backup-restore-or-migrate-data-volumes)
+Theoretically, it is better to let docker handle everything and only access the files in the way the docker container sees those, so more complicated but better if data is distributed somewhere on host file system. [Official guide](https://docs.docker.com/storage/volumes/#backup-restore-or-migrate-data-volumes)
+
+**However, I do not do this, since it does not have an advantage for me.**
 
 Backup data example for vaultwarden and caddy:
 ```
@@ -391,7 +398,7 @@ services:
       - ./caddy/caddy-config:/config
       - ./caddy/caddy-data:/data
     environment:
-      EMAIL: "your-email@provided.de" # The email address to use for ACME registration.
+      EMAIL: ${EMAIL} # The email address to use for ACME registration.
     networks:
       caddy:
         ipv4_address: 172.90.0.100
@@ -571,6 +578,28 @@ networks:
     external: true
 ```
 
+### Netdata
+- You can use [Netdata](https://www.netdata.cloud/) to monitor your server
+	- It is running a website with all the monitoring content on your server, which you can access via the browser from your PC or phone
+- [installer](https://learn.netdata.cloud/docs/agent/packaging/installer/methods/kickstart) is a single script, which will install the netdate repository and install the netdata package, it will also automatically start the webserver / website
+- It will run on `http://your-server-ip:19999`
+- You can also create a reverse [proxy caddy file](https://learn.netdata.cloud/docs/agent/running-behind-caddy) if you like to
+	- I run netdata via this reverse proxy with a local domain address as explained in [#Pi-hole and Cloudflared]({{< ref "#pi-hole-and-cloudflared" >}})
+```
+https://monitor.lan:443 {
+	tls internal
+	reverse_proxy ubuntu-server.lan:19999
+}
+```
+
+Add more charts:
+- [Sensors for system](https://learn.netdata.cloud/docs/agent/collectors/python.d.plugin/sensors)
+- Check that you have `sudo apt install lm-sensors`
+- Then run `sudo sensors-detect` as explained in the [sensor ubutu guide](https://wiki.ubuntuusers.de/Lm_sensors/)
+- Best restart afterwards to make sure that the new entries in `sudo nano /etc/modules` are loaded
+- Then check with `sudo sensors`
+- Also restart netdata `sudo systemctl restart netdata.service`
+
 ### Pi-hole and Cloudflared
 Pi-hole can be used as a local DNS service, which has benefits like encrypting your DNS queries via Cloudflare and blocking ads in the web
 - [Website Pi-hole](https://pi-hole.net/)
@@ -607,7 +636,7 @@ services:
       #- "8080:80/tcp" #Proxy pass
     environment:
       TZ: 'Europe/Berlin'
-      WEBPASSWORD: 'pw'
+      WEBPASSWORD: ${WEBPASSWORD}
       FTLCONF_LOCAL_IPV4: '<local ipv4 address of your RasPi>'
       PIHOLE_DNS_: 'cloudflared#5054'
       VIRTUAL_HOST: 'pihole.lan'
@@ -675,8 +704,8 @@ services:
       SMTP_PORT: 465
       SMTP_SECURITY: "force_tls"
       SMTP_USERNAME: "webmaster@my-domain.de"
-      SMTP_PASSWORD: "pw"
-      #ADMIN_TOKEN: "pw"
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      #ADMIN_TOKEN: ${ADMIN_TOKEN}
     volumes:
       - ./vaultwarden/vw-data:/data
     networks:
@@ -797,8 +826,8 @@ services:
     volumes:
       - ./mariadb/mysql:/var/lib/mysql
     environment:
-      - MYSQL_ROOT_PASSWORD=pw_sql_root
-      - MYSQL_PASSWORD=pw_sql_next
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
       - MYSQL_DATABASE=nextcloud
       - MYSQL_USER=nextcloud
     networks:
@@ -809,7 +838,7 @@ services:
   redis:
     image: redis
     container_name: redis
-    command: redis-server --requirepass "pw_red"
+    command: redis-server --requirepass "${REDIS_HOST_PASSWORD}"
     volumes:
       - ./redis/data:/data
     networks:
@@ -825,12 +854,12 @@ services:
     environment:
       - MYSQL_HOST=mariadb
       - MYSQL_USER=nextcloud
-      - MYSQL_PASSWORD=pw_sql_next
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
       - MYSQL_DATABASE=nextcloud
       - REDIS_HOST=redis
-      - REDIS_HOST_PASSWORD=pw_red
+      - REDIS_HOST_PASSWORD=${REDIS_HOST_PASSWORD}
       - NEXTCLOUD_ADMIN_USER=admin
-      - NEXTCLOUD_ADMIN_PASSWORD=pw_next_admin
+      - NEXTCLOUD_ADMIN_PASSWORD=${NEXTCLOUD_ADMIN_PASSWORD}
       - NEXTCLOUD_TRUSTED_DOMAINS=cloud.your-domain.de
       - NEXTCLOUD_DATA_DIR=/nextcloud_data
     depends_on:
@@ -953,7 +982,7 @@ Wiki that can be selfhosted
     container_name: postgres
     environment:
       POSTGRES_DB: wiki
-      POSTGRES_PASSWORD: pw_post
+      POSTGRES_PASSWORD: ${DB_PASS}
       POSTGRES_USER: wikijs
     logging:
       driver: "none"
@@ -973,7 +1002,7 @@ Wiki that can be selfhosted
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USER: wikijs
-      DB_PASS: pw_post
+      DB_PASS: ${DB_PASS}
       DB_NAME: wiki
     #ports:
     #  - "8089:3000"
@@ -1230,7 +1259,7 @@ services:
       - "8080:8080"
     environment:
       - DB_USER=xwiki
-      - DB_PASSWORD=xwiki
+      - DB_PASSWORD=${MYSQL_PASSWORD}
       - DB_HOST=xwiki-db
     volumes:
       - ./xwiki:/usr/local/xwiki
@@ -1246,9 +1275,9 @@ services:
       - ./db/data:/var/lib/mysql
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
     environment:
-      - MYSQL_ROOT_PASSWORD=xwiki
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
       - MYSQL_USER=xwiki
-      - MYSQL_PASSWORD=xwiki
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
       - MYSQL_DATABASE=xwiki
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_bin --explicit-defaults-for-timestamp=1 --default-authentication-plugin=mysql_native_password
     networks:
@@ -1292,7 +1321,7 @@ services:
     container_name: postgres-synapse
     environment:
       POSTGRES_DB: synapse
-      POSTGRES_PASSWORD: <pass>
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_USER: synapse
       POSTGRES_INITDB_ARGS: "--encoding='UTF8' --locale='C'"
     networks:
@@ -1367,7 +1396,7 @@ email:
   notif_from: "%(app)s <webmaster@my-domain.de>"
   app_name: "Matrix My-Name"
   smtp_user: webmaster@my-domain.de
-  smtp_pass: pw
+  smtp_pass: smtp_pw
   force_tls: true
 ```
 

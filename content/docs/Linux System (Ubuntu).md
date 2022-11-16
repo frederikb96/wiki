@@ -311,6 +311,34 @@ You can backup your old home directory, setup your new OS and transmit it back a
 - Now log into the other user again
 - And delete the tmp user including its home directory
 
+
+### Ubuntu Server
+- I encrypt my ubuntu server va LUKS
+- [Guide on how to install ubuntu server and setup remote login with luks enabled](https://blog.gradiian.io/migrating-to-cockpit-part-i/)
+	- Or this [very simple remote login lukes guide](https://blog.gradiian.io/migrating-to-cockpit-part-i/)
+- Basically I install `sudo apt install dropbear-initramfs
+- Copy your public key from your PC to the dropbear folder
+	- `sudo cp ~/.ssh/authorized_keys /etc/dropbear/initram/`
+- Configure dropbear
+	- `sudo nano /etc/dropbear/initram/dropbear.conf`
+	- `DROPBEAR_OPTIONS="-s -p 21 -c cryptroot-unlock"`
+	- do not accept passwords, use port 21 and automatically start decryption
+- Update `sudo update-initramfs -u`
+
+If you have another disk, setup that it gets automatically decrypted once you decrypted the main disk
+- We can sue [crypttab](https://linuxconfig.org/introduction-to-crypttab-with-examples) for this
+- We need a [keyfile](https://access.redhat.com/solutions/230993), which can be used to decrypt the disk
+	- `dd if=/dev/random bs=32 count=1 of=/sda.keyfile`
+	- `cryptsetup luksAddKey /dev/sda /sda.keyfile`
+- Now specify this in `sudo nano /etc/crypttab`
+	- `dm_crypt-1 UUID=82ff1267-2d02-4147-aad8-261e1abe3c08 /sda.keyfile luks`
+
+Now you are ready to reboot and log into the server to decrypt it:
+- `ssh -p 21 root@ubuntu-server`
+- Enter the password
+- Wait and connect normally to server
+- `ssh root@ubuntu-server`
+
 ### Linux-Surface
 Follow this guide [surface installation](https://github.com/linux-surface/linux-surface/wiki/Installation-and-Setup), basically for SP4:
 - install ubuntu
@@ -678,7 +706,7 @@ Tried also this:
 - done...
 
 ### Tailscale VPN
-See under [Raspberry Pi#Tailscale]({{< ref "Raspberry Pi#tailscale" >}}) on how to connect to your local network via tailscale vpn
+See under [Raspberry Pi#Tailscale VPN]({{< ref "Raspberry Pi#tailscale-vpn" >}}) on how to connect to your local network via tailscale vpn
 
 ### Work Programs
 Some Programs I need at work
